@@ -133,7 +133,7 @@ def format_table(scores: pd.DataFrame, horizons: tuple[int, ...] = TABLE_HORIZON
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="deposit-forecasting-backtest",
-        description="Run the baselines through the rolling-origin backtest and print the scores.",
+        description="Run the default models through the rolling-origin backtest, print scores.",
     )
     parser.add_argument(
         "--first-origin",
