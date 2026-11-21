@@ -31,6 +31,7 @@ uv sync                                  # install dependencies
 uv run deposit-forecasting-data          # load the panel from the committed cache, print a summary
 uv run deposit-forecasting-data --refresh  # download again and overwrite data/raw/
 uv run deposit-forecasting-backtest      # rolling-origin backtest of all models (--out DIR writes CSVs)
+uv run deposit-forecasting-scenarios     # +/-100 bp rate scenarios, saves docs/figures/rate_scenarios.png
 uv run pytest                            # offline tests
 ```
 
@@ -40,13 +41,16 @@ uv run pytest                            # offline tests
 - [x] Baselines
 - [x] Rolling-origin backtest
 - [x] Exponential smoothing and SARIMA
-- [ ] Rate regression and scenarios
+- [x] Rate regression and scenarios
 - [ ] Gradient boosting
 - [ ] Results and recommendation
 
 ## Results
 
-To be added once models and the backtest exist.
+To be added once models and the backtest exist. Meanwhile, the rate scenarios (parallel +/-100 bp
+shift of the ECB deposit facility rate against unchanged rates, 24 months):
+
+![Deposit scenarios for +100 bp and -100 bp rate shocks](docs/figures/rate_scenarios.png)
 
 ## Data source
 

@@ -22,6 +22,7 @@ from deposit_forecasting.models import (
     Forecaster,
     NaiveForecaster,
 )
+from deposit_forecasting.regression import RateRegressionForecaster
 
 MAX_HORIZON = 12
 DEFAULT_FIRST_ORIGIN = pd.Period("2010-12", freq="M")
@@ -35,6 +36,7 @@ DEFAULT_MODELS: dict[str, Callable[[], Forecaster]] = {
     "drift": DriftForecaster,
     "ets": EtsForecaster,
     "sarima": SarimaForecaster,
+    "rate_regression": RateRegressionForecaster,
 }
 TABLE_HORIZONS = (1, 3, 6, 12)
 
@@ -134,10 +136,7 @@ def format_table(scores: pd.DataFrame, horizons: tuple[int, ...] = TABLE_HORIZON
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="deposit-forecasting-backtest",
-        description=(
-            "Run the baselines, ETS and SARIMA through the rolling-origin backtest "
-            "and print the scores."
-        ),
+        description="Run the default models through the rolling-origin backtest, print scores.",
     )
     parser.add_argument(
         "--first-origin",
