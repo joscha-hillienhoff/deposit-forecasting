@@ -146,7 +146,9 @@ def main(argv: list[str] | None = None) -> None:
         help="first forecast origin, YYYY-MM (default: %(default)s)",
     )
     parser.add_argument(
-        "--out", type=Path, help="directory for forecasts.csv and scores.csv (created if needed)"
+        "--out",
+        type=Path,
+        help="directory for backtest_forecasts.csv and backtest_scores.csv (created if needed)",
     )
     args = parser.parse_args(argv)
     panel = load_panel()
@@ -155,8 +157,12 @@ def main(argv: list[str] | None = None) -> None:
     print(format_table(scores))
     if args.out is not None:
         args.out.mkdir(parents=True, exist_ok=True)
-        forecasts.to_csv(args.out / "forecasts.csv", index=False)
-        scores.to_csv(args.out / "scores.csv", index=False)
+        forecasts.round({c: 4 for c in ("actual", "mean", "lower", "upper")}).to_csv(
+            args.out / "backtest_forecasts.csv", index=False
+        )
+        scores.round({c: 4 for c in ("mae", "mape", "coverage")}).to_csv(
+            args.out / "backtest_scores.csv", index=False
+        )
 
 
 if __name__ == "__main__":

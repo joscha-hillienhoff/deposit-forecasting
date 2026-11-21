@@ -100,13 +100,18 @@ def plot_scenarios(
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    colors = {"baseline": "#444444", "+100bp": "#1b7837", "-100bp": "#b2182b"}
+    colors = {"baseline": "#7f7f7f", "+100bp": "#d95f02", "-100bp": "#1f77b4"}
     recent = panel[TARGET].iloc[-HISTORY_MONTHS:]
     fig, ax = plt.subplots(figsize=(9, 5))
     ax.plot(recent.index.to_timestamp(), recent, color="black", label="Observed")
     for name, part in scenarios.groupby("scenario", sort=False):
         x = part["month"].dt.to_timestamp()
-        ax.plot(x, part["mean"], color=colors[name], label=name)
+        ax.plot(
+            [recent.index[-1].to_timestamp(), *x],
+            [recent.iloc[-1], *part["mean"]],
+            color=colors[name],
+            label=name,
+        )
         ax.fill_between(x, part["lower"], part["upper"], color=colors[name], alpha=0.12)
     ax.set_ylabel("Household overnight deposits, Germany (EUR bn)")
     ax.set_xlabel("Month")

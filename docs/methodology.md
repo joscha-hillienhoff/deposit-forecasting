@@ -97,6 +97,75 @@ data exists only in aggregate, so client-level departures are not observable. Re
 the ECB aggregate, where no such schedule exists. The ECB backtest uses the real data without
 outflows; the synthetic book only illustrates the logic and proves nothing about real accuracy.
 
+## Backtesting
+
+**Rolling origin instead of a single split.** Decision: forecast from many origins, one per
+month, and average the errors per horizon. Reason: a single train/test split gives one
+error path whose value depends on the split date (in this series, on whether it falls before
+or after the rate turn) and leaves too few forecasts for stable coverage estimates. Rejected:
+a single hold-out split.
+
+**Expanding window.** Decision: each origin fits on all history up to and including the
+origin, with a fresh model instance and no state carried over. Reason: the history is short
+(under 25 years of monthly data), so discarding early observations costs information, and
+models that want a shorter memory (such as the drift window) say so themselves. Rejected: a
+sliding window, which would silently give every model the same short memory.
+
+**No look-ahead.** Decision: the model receives only the panel rows up to the origin. Reason:
+the evaluation is only meaningful if the information set is that of a real forecast at that
+date. Caveat: the panel is the latest data vintage, so revisions to past values are not
+reproduced.
+
+**First origin 2010-12.** Decision: the first origin is configurable and defaults to 2010-12.
+Reason: that leaves eight years (96 months) of history, enough for every planned model,
+including seasonal ones and a 36-month drift window. Rejected: starting at the minimum any
+model could run on, which would score the most data-starved fits.
+
+**Horizons 1 to 12 months.** Decision: every origin forecasts up to 12 months, and a horizon is
+scored only if its target month is realised, so the last origins contribute fewer horizons.
+Reason: one year covers the planning range and one full seasonal cycle. Rejected: padding the
+end with partial scores or dropping the last 11 origins, which would waste the latest data.
+Near the end the models are asked only for the realised months, which for any model whose
+forecast for month h does not depend on the requested horizon is the same as truncating a
+12-month forecast.
+
+**Ex-post conditional evaluation of drivers.** Decision: the realised driver columns (all
+panel columns except `deposits`) of the forecast months are passed as `exog`. Reason: driver
+models are then judged on how well they translate a rate path into deposits, not on how well
+the rate path was guessed, and models that ignore `exog` are unaffected. This is not a real-time forecast: a user would have
+to supply scenario paths instead. Rejected: forecasting the drivers too, which mixes two questions and
+needs a second model.
+
+**Segment by target month.** Decision: scores are reported for the full period and for the
+2022-2023 rate turn, selected by the month being forecast (2022-01 to 2023-12); the windows
+are a parameter. Reason: the turn is the stress test for a driver-based model, and a forecast
+belongs to the regime of the month it predicts, however early it was made. Rejected: selecting
+by origin, which would mix forecasts for the turn with forecasts for the calm period after it.
+Within the turn the number of forecasts is small (24 per horizon), so differences between
+models there are indicative.
+
+**MAE as the main metric.** Decision: the headline metric is MAE in EUR bn. Reason: it is in
+the unit of the target, easy to explain, and weights every euro of error equally. Rejected:
+RMSE, whose weight on single large errors makes the ranking depend on a few months.
+
+**MAPE as a secondary metric.** Decision: report MAPE (%) next to MAE. Reason: it lets a reader
+judge the error relative to the level. It misleads when the series is near zero or changes
+sign (the denominator explodes), for flows instead of stocks (the same absolute error looks
+huge in a quiet month), when over- and under-forecasts are treated unequally (the same
+absolute error is a larger percentage when the actual is small, so MAPE favours forecasts that
+are too high), and when comparing series of different scale or level. Deposits are a large,
+strictly positive stock, so none of these dominates here, but the trend makes the percentage
+error shrink mechanically as the level rises, so MAPE is never the only metric. Rejected:
+sMAPE, which fixes one asymmetry but has its own.
+
+**Coverage next to the nominal level.** Decision: the share of actuals inside
+`[lower, upper]` is shown next to the nominal level (default 80 %). Reason: a band is only
+useful if its observed coverage is close to its claim; a much lower value means the band is
+too narrow, a much higher one that it is uninformative. Coverage is a mean over overlapping
+forecasts from adjacent origins, which are strongly dependent, so small gaps to the nominal
+level are not significant. Rejected: interval scores, which combine width and coverage in one
+number that is harder to read.
+
 ## Exponential smoothing and SARIMA
 
 Both models are in `classical.py`, use the shared interface and are scored by the same
@@ -231,75 +300,6 @@ and the 2022 turn), and uses German aggregate data without customer segments, so
 between household types are invisible. The scenarios show conditional model responses, not
 forecasts of what the ECB will do.
 
-## Backtesting
-
-**Rolling origin instead of a single split.** Decision: forecast from many origins, one per
-month, and average the errors per horizon. Reason: a single train/test split gives one
-error path whose value depends on the split date (in this series, on whether it falls before
-or after the rate turn) and leaves too few forecasts for stable coverage estimates. Rejected:
-a single hold-out split.
-
-**Expanding window.** Decision: each origin fits on all history up to and including the
-origin, with a fresh model instance and no state carried over. Reason: the history is short
-(under 25 years of monthly data), so discarding early observations costs information, and
-models that want a shorter memory (such as the drift window) say so themselves. Rejected: a
-sliding window, which would silently give every model the same short memory.
-
-**No look-ahead.** Decision: the model receives only the panel rows up to the origin. Reason:
-the evaluation is only meaningful if the information set is that of a real forecast at that
-date. Caveat: the panel is the latest data vintage, so revisions to past values are not
-reproduced.
-
-**First origin 2010-12.** Decision: the first origin is configurable and defaults to 2010-12.
-Reason: that leaves eight years (96 months) of history, enough for every planned model,
-including seasonal ones and a 36-month drift window. Rejected: starting at the minimum any
-model could run on, which would score the most data-starved fits.
-
-**Horizons 1 to 12 months.** Decision: every origin forecasts up to 12 months, and a horizon is
-scored only if its target month is realised, so the last origins contribute fewer horizons.
-Reason: one year covers the planning range and one full seasonal cycle. Rejected: padding the
-end with partial scores or dropping the last 11 origins, which would waste the latest data.
-Near the end the models are asked only for the realised months, which for any model whose
-forecast for month h does not depend on the requested horizon is the same as truncating a
-12-month forecast.
-
-**Ex-post conditional evaluation of drivers.** Decision: the realised driver columns (all
-panel columns except `deposits`) of the forecast months are passed as `exog`. Reason: driver
-models are then judged on how well they translate a rate path into deposits, not on how well
-the rate path was guessed, and models that ignore `exog` are unaffected. This is not a real-time forecast: a user would have
-to supply scenario paths instead. Rejected: forecasting the drivers too, which mixes two questions and
-needs a second model.
-
-**Segment by target month.** Decision: scores are reported for the full period and for the
-2022-2023 rate turn, selected by the month being forecast (2022-01 to 2023-12); the windows
-are a parameter. Reason: the turn is the stress test for a driver-based model, and a forecast
-belongs to the regime of the month it predicts, however early it was made. Rejected: selecting
-by origin, which would mix forecasts for the turn with forecasts for the calm period after it.
-Within the turn the number of forecasts is small (24 per horizon), so differences between
-models there are indicative.
-
-**MAE as the main metric.** Decision: the headline metric is MAE in EUR bn. Reason: it is in
-the unit of the target, easy to explain, and weights every euro of error equally. Rejected:
-RMSE, whose weight on single large errors makes the ranking depend on a few months.
-
-**MAPE as a secondary metric.** Decision: report MAPE (%) next to MAE. Reason: it lets a reader
-judge the error relative to the level. It misleads when the series is near zero or changes
-sign (the denominator explodes), for flows instead of stocks (the same absolute error looks
-huge in a quiet month), when over- and under-forecasts are treated unequally (the same
-absolute error is a larger percentage when the actual is small, so MAPE favours forecasts that
-are too high), and when comparing series of different scale or level. Deposits are a large,
-strictly positive stock, so none of these dominates here, but the trend makes the percentage
-error shrink mechanically as the level rises, so MAPE is never the only metric. Rejected:
-sMAPE, which fixes one asymmetry but has its own.
-
-**Coverage next to the nominal level.** Decision: the share of actuals inside
-`[lower, upper]` is shown next to the nominal level (default 80 %). Reason: a band is only
-useful if its observed coverage is close to its claim; a much lower value means the band is
-too narrow, a much higher one that it is uninformative. Coverage is a mean over overlapping
-forecasts from adjacent origins, which are strongly dependent, so small gaps to the nominal
-level are not significant. Rejected: interval scores, which combine width and coverage in one
-number that is harder to read.
-
 ## Gradient boosting
 
 **Target: cumulative log change, not the level.** Decision: the model predicts
@@ -366,3 +366,68 @@ a plain drift or a linear rate regression can. A simple model has few parameters
 estimate and degrades gracefully; a complex one only wins if the extra flexibility captures
 structure that the sample can pin down. Rejected: assuming that the more complex model is the
 better one. The backtest decides, per horizon and segment.
+
+## Questions and answers
+
+**Why rolling backtesting instead of a simple train/test split?** A single split yields one
+error path whose value depends on where the split falls. Here that matters: a split before 2022
+never tests the rate turn, a split after it tests almost nothing else, and the ranking of the
+models differs between the two (over all months SARIMA leads, in the 2022-2023 segment the
+naive forecast and ETS do). A rolling origin gives 189 one-month and 178 twelve-month forecasts
+under the information set of each date, so errors, horizon profiles and band coverage can be
+averaged, and the turn can be examined as a separate segment. The price is that the forecasts
+of adjacent origins overlap and are strongly dependent, so the effective sample is smaller than
+the counts suggest, and that every model is refitted at every origin.
+
+**When is MAPE misleading?** MAPE divides by the actual, so it explodes when actuals are near
+zero or change sign, penalises over-forecasts less than under-forecasts of the same size, is
+unusable for flows that can be zero, and cannot compare series of different scale. For a
+strictly positive stock of EUR 0.7 to 1.9 trillion none of these bites hard, which is why it
+stays a secondary metric. There is a milder trap in this project: the level grows about
+2.7-fold from the first backtest origin to the end of the sample, so the same EUR error is a
+smaller percentage late in the sample and MAPE flatters recent years. MAE in EUR bn stays the headline
+because it states the error in the unit that a liquidity planner cares about. For a single
+client or a net-flow series, where the actual can be close to zero, MAPE would be
+meaningless.
+
+**Why does a simple model often beat a complex one?** With about 280 monthly observations,
+heavily overlapping rows and few regimes, a flexible model has to estimate many parameters
+from little independent information, so its variance rivals the signal. In this backtest the
+naive forecast is the most accurate model at 12 months in the 2022-2023 segment (MAE 63 against
+97 for LightGBM and 129 for SARIMA), and ETS with a damped trend, a deliberately restrained
+model, beats the more flexible SARIMA there at every horizon. The complex model does win where
+its flexibility captures structure the sample can pin down: LightGBM has the lowest full-period
+error at 11 and 12 months. A simple model also degrades gracefully, is cheap to monitor, and
+sets the bar any more complex model has to clear.
+
+**How does the 2022-2023 rate turn affect the models?** Before 2022 deposits grew steadily
+while rates were very low. When the ECB raised rates, growth stopped and the stock fell, so
+trend-following models kept extrapolating growth. From a 2021-12 origin the rate regression
+and LightGBM forecast rising deposits, while the realised path stayed flat. Within the
+segment the drift and the rate regression have a 12-month MAE of 131 and 159 EUR bn against 63
+for the naive forecast, and their 80 % bands contain none of the realised values at 12 months.
+The rate regression was estimated on a sample dominated by low rates, so the response to a
+large spread change is an extrapolation of a linear, stable relationship. ETS limits the
+damage because its damped trend flattens, and the naive forecast is hard to beat at 12 months.
+The practical lessons are that bands fitted in calm periods are too narrow in a regime change
+(coverage falls well below 80 %) and that a model's explanatory power in normal times does not
+guarantee it at a structural break.
+
+**What would a bank additionally consider?** The ECB aggregate hides what a bank sees in its
+own book. First, individual large deals and planned outflows: a few large clients can move the
+total, and a known departure is information that no statistical model can extract from the
+history. The synthetic demonstration (a fictional book) shows the mechanism: subtracting the
+announced outflows reduces the drift forecast's MAE from 1.09 to 0.05 EUR bn on that
+synthetic data, which proves nothing about real accuracy but shows the logic. Second, customer
+segments: retail and corporate customers, and rate-sensitive and sticky customers, react very
+differently to the same rate path, so a bank models segments separately and an aggregate
+elasticity such as the one estimated here is an average over very different behaviour. Third,
+the stable core versus the volatile part of deposits: the share of balances that stays through
+rate and market stress (the core, which behavioural models assign a long maturity) is
+distinguished from the share that leaves quickly (the volatile part, which is treated as
+short-dated). Behavioural maturity assumptions feed liquidity risk management (the
+liquidity coverage ratio and stress outflow assumptions, funding and buffer planning) and
+interest-rate risk management (the repricing profile and duration of non-maturing deposits,
+and thereby the sensitivity of net interest income and economic value to rate changes).
+Forecast scenarios such as the +/-100 bp paths here are an input to these
+assessments, not a substitute for them.

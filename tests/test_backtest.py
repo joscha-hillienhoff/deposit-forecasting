@@ -127,7 +127,7 @@ def test_cli_smoke(tmp_path, monkeypatch, capsys):
     backtest.main(["--first-origin", "2019-01", "--out", str(tmp_path / "out")])
     printed = capsys.readouterr().out
     assert all(name in printed for name in backtest.DEFAULT_MODELS)
-    forecasts = pd.read_csv(tmp_path / "out" / "forecasts.csv")
-    scores = pd.read_csv(tmp_path / "out" / "scores.csv")
+    forecasts = pd.read_csv(tmp_path / "out" / "backtest_forecasts.csv")
+    scores = pd.read_csv(tmp_path / "out" / "backtest_scores.csv")
     assert list(forecasts.columns) == backtest.FORECAST_COLUMNS
     assert list(scores.columns) == backtest.SCORE_COLUMNS
