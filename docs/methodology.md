@@ -151,9 +151,9 @@ RMSE, whose weight on single large errors makes the ranking depend on a few mont
 **MAPE as a secondary metric.** Decision: report MAPE (%) next to MAE. Reason: it lets a reader
 judge the error relative to the level. It misleads when the series is near zero or changes
 sign (the denominator explodes), for flows instead of stocks (the same absolute error looks
-huge in a quiet month), when over- and under-forecasts are treated unequally (the same
-absolute error is a larger percentage when the actual is small, so MAPE favours forecasts that
-are too high), and when comparing series of different scale or level. Deposits are a large,
+huge in a quiet month), when over- and under-forecasts are treated unequally (an
+under-forecast can cost at most 100 % while an over-forecast is unbounded, so MAPE favours
+forecasts that are too low), and when comparing series of different scale or level. Deposits are a large,
 strictly positive stock, so none of these dominates here, but the trend makes the percentage
 error shrink mechanically as the level rises, so MAPE is never the only metric. Rejected:
 sMAPE, which fixes one asymmetry but has its own.
@@ -380,7 +380,8 @@ of adjacent origins overlap and are strongly dependent, so the effective sample 
 the counts suggest, and that every model is refitted at every origin.
 
 **When is MAPE misleading?** MAPE divides by the actual, so it explodes when actuals are near
-zero or change sign, penalises over-forecasts less than under-forecasts of the same size, is
+zero or change sign, penalises over-forecasts more than under-forecasts (an under-forecast
+costs at most 100 %, an over-forecast is unbounded, so it favours forecasts that are too low), is
 unusable for flows that can be zero, and cannot compare series of different scale. For a
 strictly positive stock of EUR 0.7 to 1.9 trillion none of these bites hard, which is why it
 stays a secondary metric. There is a milder trap in this project: the level grows about
@@ -402,8 +403,9 @@ sets the bar any more complex model has to clear.
 
 **How does the 2022-2023 rate turn affect the models?** Before 2022 deposits grew steadily
 while rates were very low. When the ECB raised rates, growth stopped and the stock fell, so
-trend-following models kept extrapolating growth. From a 2021-12 origin the rate regression
-and LightGBM forecast rising deposits, while the realised path stayed flat through 2022 and fell in 2023. Within the
+trend-following models kept extrapolating growth. From a 2021-12 origin the drift and the rate
+regression forecast continued growth, to 1946 and 1990 EUR bn at 12 months, while deposits grew
+only about 2.6 % to 1868 EUR bn in 2022, peaked at the end of 2022 and fell in 2023. Within the
 segment the drift and the rate regression have a 12-month MAE of 131 and 159 EUR bn against 63
 for the naive forecast, and their 80 % bands contain none of the realised values at 12 months.
 The rate regression was estimated on a sample dominated by low rates, so the response to a

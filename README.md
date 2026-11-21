@@ -39,6 +39,7 @@ uv run deposit-forecasting-backtest --out results  # regenerate the committed re
 uv run deposit-forecasting-figures       # result figures in docs/figures/ from results/
 uv run deposit-forecasting-scenarios     # +/-100 bp rate scenarios, saves docs/figures/rate_scenarios.png
 uv run deposit-forecasting-explain       # SHAP summary plots of the gradient-boosting model (--out DIR)
+uv run jupyter execute --inplace notebooks/results.ipynb  # re-run the notebook (writes no figures)
 uv run pytest                            # offline tests
 ```
 
@@ -93,8 +94,8 @@ they were produced with `uv run deposit-forecasting-backtest --out results` on t
 Over all months every model beats the naive forecast clearly, and the seasonal statistical
 models (SARIMA, ETS) are the most accurate up to six months with well-calibrated bands, while
 LightGBM wins at 12 months but with bands that are too narrow (61 % against 80 %). The 2022-2023
-turn changes the picture: deposits were flat in 2022 and fell in 2023 while rates rose, and the trend-following
-drift and the rate regression overshoot, with MAE two to three times that of the naive forecast
+turn changes the picture: deposits grew only about 2.6 % in 2022, peaked at year-end and fell in 2023
+while rates rose, and the trend-following drift and the rate regression overshoot, with MAE two to three times that of the naive forecast
 at 12 months and bands that almost never contain the outcome. ETS, which damps its trend, copes
 best up to eight months; at 12 months the naive forecast is the most accurate, and no band keeps
 its nominal coverage at long horizons. The turn has only 24 forecasts per horizon, so

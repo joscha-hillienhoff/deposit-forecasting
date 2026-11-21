@@ -25,7 +25,6 @@ deposit-forecasting-figures = "deposit_forecasting.figures:main"
 dev = [
     "ipykernel>=6",
     "nbclient>=0.10",
-    "nbformat>=5",
     "pytest>=8",
     "ruff>=0.6",
 ]
