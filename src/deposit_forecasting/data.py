@@ -104,18 +104,28 @@ def download(
     )
 
 
-def fetch_raw(series: Series, *, refresh: bool = False, raw_dir: Path | None = None) -> bytes:
-    """Return the raw CSV bytes, reading the cache unless a refresh is requested.
+def fetch_all(*, refresh: bool = False, raw_dir: Path | None = None) -> dict[str, bytes]:
+    """Return the raw CSV bytes of every series, keyed by column name.
 
-    The API response is stored unchanged, so the cache is a faithful copy of the source.
+    The cache is read unless a refresh is requested or a file is missing. All needed
+    downloads finish before any file is written, and each file is replaced atomically, so
+    a failed download or an interruption never leaves a mix of vintages in the cache. The
+    API response is stored unchanged, so the cache is a faithful copy of the source.
     """
-    path = series.cache_path(raw_dir)
-    if not refresh and path.exists():
-        return path.read_bytes()
-    content = download(series)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(content)
-    return content
+    raws: dict[str, bytes] = {}
+    fetched: dict[Path, bytes] = {}
+    for series in SERIES:
+        path = series.cache_path(raw_dir)
+        if not refresh and path.exists():
+            raws[series.column] = path.read_bytes()
+        else:
+            raws[series.column] = fetched[path] = download(series)
+    for path, content in fetched.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_bytes(content)
+        tmp.replace(path)
+    return raws
 
 
 def _parse(raw: bytes) -> pd.DataFrame:
@@ -149,14 +159,6 @@ def _month_end_policy_rate(series: Series, raw: bytes, months: pd.PeriodIndex) -
     return pd.Series(levels, index=months, name=series.column)
 
 
-def last_deposit_status(raw: bytes | None = None, *, raw_dir: Path | None = None) -> str:
-    """Observation status of the latest target month ("A" final, "P" provisional)."""
-    if raw is None:
-        raw = fetch_raw(SERIES_BY_COLUMN["deposits"], raw_dir=raw_dir)
-    frame = _parse(raw).sort_values("TIME_PERIOD")
-    return str(frame["OBS_STATUS"].iloc[-1])
-
-
 def load_panel(*, refresh: bool = False, raw_dir: Path | None = None) -> pd.DataFrame:
     """Build the monthly panel from the cached raw series.
 
@@ -164,9 +166,9 @@ def load_panel(*, refresh: bool = False, raw_dir: Path | None = None) -> pd.Data
     (time deposit rate minus overnight rate, percentage points) and ``deposit_facility_rate``
     (end-of-month level). The sample runs from 2003-01 to the last month in which the target
     and both MIR rates exist. ``panel.attrs["last_deposit_status"]`` holds the observation
-    status of the last target month.
+    status of the last panel month.
     """
-    raws = {s.column: fetch_raw(s, refresh=refresh, raw_dir=raw_dir) for s in SERIES}
+    raws = fetch_all(refresh=refresh, raw_dir=raw_dir)
     deposits = _monthly(SERIES_BY_COLUMN["deposits"], raws["deposits"])
     overnight = _monthly(SERIES_BY_COLUMN["overnight_rate"], raws["overnight_rate"])
     time_dep = _monthly(SERIES_BY_COLUMN["time_deposit_rate"], raws["time_deposit_rate"])
@@ -180,7 +182,12 @@ def load_panel(*, refresh: bool = False, raw_dir: Path | None = None) -> pd.Data
         ["deposits", "overnight_rate", "time_deposit_rate", "spread", "deposit_facility_rate"]
     ]
     panel.index.name = "month"
-    panel.attrs["last_deposit_status"] = last_deposit_status(raws["deposits"])
+    status_frame = _parse(raws["deposits"])
+    statuses = pd.Series(
+        status_frame["OBS_STATUS"].to_numpy(),
+        index=pd.PeriodIndex(status_frame["TIME_PERIOD"], freq="M"),
+    )
+    panel.attrs["last_deposit_status"] = str(statuses.loc[panel.index[-1]])
     return panel
 
 
