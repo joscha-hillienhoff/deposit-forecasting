@@ -7,7 +7,7 @@ Every model of the project implements :class:`Forecaster`:
   ``deposits`` column.
 * ``predict(horizon, exog=None)`` returns a DataFrame indexed by the next ``horizon`` months
   with the columns ``mean``, ``lower`` and ``upper``. ``exog`` is reserved for future driver
-  paths (for example rate scenarios) and is ignored by the baselines.
+  paths (for example rate scenarios) and is ignored by models that use only the target.
 
 All models share one nominal band level, ``level`` (default 0.8, a central 80 % interval).
 """

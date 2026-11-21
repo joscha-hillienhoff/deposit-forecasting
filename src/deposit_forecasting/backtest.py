@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from deposit_forecasting.classical import EtsForecaster, SarimaForecaster
 from deposit_forecasting.data import load_panel
 from deposit_forecasting.gbm import GradientBoostingForecaster
 from deposit_forecasting.models import (
@@ -22,6 +23,7 @@ from deposit_forecasting.models import (
     Forecaster,
     NaiveForecaster,
 )
+from deposit_forecasting.regression import RateRegressionForecaster
 
 MAX_HORIZON = 12
 DEFAULT_FIRST_ORIGIN = pd.Period("2010-12", freq="M")
@@ -33,6 +35,9 @@ SCORE_COLUMNS = ["model", "segment", "horizon", "n", "mae", "mape", "coverage", 
 DEFAULT_MODELS: dict[str, Callable[[], Forecaster]] = {
     "naive": NaiveForecaster,
     "drift": DriftForecaster,
+    "ets": EtsForecaster,
+    "sarima": SarimaForecaster,
+    "rate_regression": RateRegressionForecaster,
     "lightgbm": GradientBoostingForecaster,
 }
 TABLE_HORIZONS = (1, 3, 6, 12)

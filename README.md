@@ -30,7 +30,8 @@ percentage points). The latest deposits value is provisional; its status is avai
 uv sync                                  # install dependencies
 uv run deposit-forecasting-data          # load the panel from the committed cache, print a summary
 uv run deposit-forecasting-data --refresh  # download again and overwrite data/raw/
-uv run deposit-forecasting-backtest      # rolling-origin backtest of the default models (--out DIR writes CSVs)
+uv run deposit-forecasting-backtest      # rolling-origin backtest of all models (--out DIR writes CSVs)
+uv run deposit-forecasting-scenarios     # +/-100 bp rate scenarios, saves docs/figures/rate_scenarios.png
 uv run deposit-forecasting-explain       # SHAP summary plots of the gradient-boosting model (--out DIR)
 uv run pytest                            # offline tests
 ```
@@ -40,14 +41,17 @@ uv run pytest                            # offline tests
 - [x] Data
 - [x] Baselines
 - [x] Rolling-origin backtest
-- [ ] Exponential smoothing and SARIMA
-- [ ] Rate regression and scenarios
+- [x] Exponential smoothing and SARIMA
+- [x] Rate regression and scenarios
 - [x] Gradient boosting
 - [ ] Results and recommendation
 
 ## Results
 
-To be added once models and the backtest exist.
+To be added once models and the backtest exist. Meanwhile, the rate scenarios (parallel +/-100 bp
+shift of the ECB deposit facility rate against unchanged rates, 24 months):
+
+![Deposit scenarios for +100 bp and -100 bp rate shocks](docs/figures/rate_scenarios.png)
 
 ![SHAP summary of the 12-month gradient-boosting model](docs/figures/shap_h12.png)
 
