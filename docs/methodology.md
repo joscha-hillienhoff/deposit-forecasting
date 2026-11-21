@@ -51,3 +51,48 @@ a mix of vintages; commit the files.
 Reason: results and tests are reproducible and run offline (including in CI), and later data
 revisions cannot silently change reported numbers. Rejected: downloading on every run, which
 makes results depend on the day they are produced and on network availability.
+
+## Model interface and baselines
+
+**One `fit`/`predict` interface.** Decision: every model implements `fit(history)` on a panel
+slice ending at the forecast origin and `predict(horizon, exog=None)`, returning a DataFrame
+indexed by the next `horizon` months with columns `mean`, `lower`, `upper`. Reason: the
+backtest can treat all models alike, and `exog` already reserves room for driver paths (rates,
+scenarios) of later models. Rejected: model-specific signatures, which would force special
+cases into every evaluation.
+
+**One nominal band level.** Decision: all models share the level `level`, default 0.8 (central
+80 % interval), configurable. Reason: bands are only comparable if they claim the same
+coverage; 80 % keeps bands informative at the small sample sizes of a rolling backtest.
+Rejected: 95 %, whose wide bands are hard to check empirically with few forecasts. The level is
+nominal; observed coverage is evaluated later, not assumed.
+
+**Naive baseline.** Decision: mean = last value. Reason: the standard minimum benchmark that
+any model must beat. Rejected: a historical mean, which ignores that the level is persistent.
+
+**Drift baseline and its window.** Decision: mean = last value + h * average monthly change over
+the trailing 36 months (`window`, or `None` for the full history). Reason: an auditable
+expectation model with one parameter; a trailing window follows the recent trend, whereas the
+full history averages over very different rate regimes. Rejected: a full-history default.
+There is deliberately no seasonality: the baseline stays transparent and later models are
+judged against it.
+
+**Band of width z * sigma * sqrt(h).** Decision: sigma is the standard deviation of monthly
+changes (in the drift window for the drift model, full history for the naive model). Reason:
+for a random walk the h-step error variance is h * sigma^2. This assumes uncorrelated changes
+with constant variance; autocorrelation or seasonality makes the band only approximate.
+Rejected: a constant-width band, which ignores that uncertainty grows with the horizon.
+
+**Planned outflows.** Decision: an optional schedule of known future outflows (month, EUR bn)
+is subtracted cumulatively from the mean from its month onwards, and the band is shifted by the
+same amount. Reason: announced departures are information the trend cannot contain, and a
+transparent subtraction stays auditable. Rejected: folding them into the drift, which would
+smear a known one-off event over all months. The schedule is an input: if the estimation
+window already contains similar departures, the drift partly reflects them too.
+
+**Synthetic data for outflows.** Decision: planned outflows are demonstrated on a small,
+labelled synthetic deposit book of a fictional bank (retail trend plus noise, a few large
+clients that leave on announced dates), generated deterministically from a seed. Reason: public
+data exists only in aggregate, so client-level departures are not observable. Rejected: using
+the ECB aggregate, where no such schedule exists. The ECB backtest uses the real data without
+outflows; the synthetic book only illustrates the logic and proves nothing about real accuracy.

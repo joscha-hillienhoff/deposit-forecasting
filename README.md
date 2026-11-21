@@ -3,8 +3,8 @@
 Comparing forecasting models for household overnight deposits on public ECB data, judged on
 **accuracy**, **transparency** and **practicality**.
 
-All data is public and comes from the ECB Data Portal. No synthetic data is used so far; if
-synthetic data is added later it will be labelled as such here.
+All data is public and comes from the ECB Data Portal. The only exception is a small fictional
+deposit book in `synthetic.py`, always labelled synthetic, that demonstrates planned outflows.
 
 ## Data
 
@@ -35,13 +35,13 @@ uv run pytest                            # offline tests
 
 ## Status
 
-- [x] Step 1: project skeleton and reproducible data loading
-- [ ] Step 2: features
-- [ ] Step 3: model interface and baselines
-- [ ] Step 4: further models
-- [ ] Step 5: backtesting
-- [ ] Step 6: scenarios
-- [ ] Step 7: analysis notebook, results table and charts
+- [x] Data
+- [x] Baselines
+- [ ] Rolling-origin backtest
+- [ ] Exponential smoothing and SARIMA
+- [ ] Rate regression and scenarios
+- [ ] Gradient boosting
+- [ ] Results and recommendation
 
 ## Results
 
