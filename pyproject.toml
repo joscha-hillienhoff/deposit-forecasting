@@ -12,6 +12,7 @@ dependencies = [
 
 [project.scripts]
 deposit-forecasting-data = "deposit_forecasting.data:main"
+deposit-forecasting-backtest = "deposit_forecasting.backtest:main"
 
 [dependency-groups]
 dev = [
