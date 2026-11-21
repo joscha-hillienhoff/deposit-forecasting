@@ -2,10 +2,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from deposit_forecasting import scenarios
+from deposit_forecasting.backtest import FORECAST_COLUMNS, run_backtest
 from deposit_forecasting.regression import FEATURES, RateRegressionForecaster
 from deposit_forecasting.scenarios import (
     SCENARIO_COLUMNS,
     estimate_pass_through,
+    plot_scenarios,
     rate_paths,
     run_scenarios,
 )
@@ -117,3 +120,60 @@ def test_pass_through_is_asymmetric(panel):
     assert paths.index[0] == panel.index[-1] + 1 and len(paths) == 6
     base = rate_paths(panel, 0, horizon=6)
     assert (base["time_deposit_rate"] == panel["time_deposit_rate"].iloc[-1]).all()
+
+
+def test_rate_paths_recursion_with_known_coefficients():
+    index = pd.period_range("2020-01", periods=3, freq="M")
+    panel = pd.DataFrame({"overnight_rate": 1.0, "time_deposit_rate": 2.0}, index=index)
+    known = pd.DataFrame(
+        {"phi": [0.5, 0.0], "impact": [0.1, 0.4]},
+        index=["overnight_rate", "time_deposit_rate"],
+    )
+    up = rate_paths(panel, 100, horizon=3, pass_through=known)
+    # delta_h = phi * delta_{h-1} + impact * shift: overnight 0.1, 0.15, 0.175; deposit rate 0.4
+    np.testing.assert_allclose(up["overnight_rate"], [1.1, 1.15, 1.175])
+    np.testing.assert_allclose(up["time_deposit_rate"], [2.4, 2.4, 2.4])
+    np.testing.assert_allclose(up["spread"], [1.3, 1.25, 1.225])
+    down = rate_paths(panel, -100, horizon=3, pass_through=known)
+    np.testing.assert_allclose(down["overnight_rate"], [0.9, 0.85, 0.825])
+    np.testing.assert_allclose(down["time_deposit_rate"], [1.6, 1.6, 1.6])
+    flat = rate_paths(panel, 0, horizon=3, pass_through=known)
+    np.testing.assert_allclose(flat["spread"], [1.0, 1.0, 1.0])
+
+
+def test_rate_regression_runs_through_backtest(panel):
+    history = panel.iloc[:320]
+    first = history.index[-14]
+    table = run_backtest(history, {"rate_regression": RateRegressionForecaster}, first_origin=first)
+    assert list(table.columns) == FORECAST_COLUMNS
+    assert set(table["model"]) == {"rate_regression"}
+    # the final origins have fewer than 12 realised future months, so exog is shorter
+    per_origin = table.groupby("origin")["horizon"].max()
+    assert per_origin.iloc[0] == 12 and per_origin.iloc[-1] == 1
+    # an origin with the full window reproduces fit + predict on the realised spread path
+    origin = per_origin.index[0]
+    future = history.loc[origin + 1 : origin + 12, ["spread"]]
+    direct = RateRegressionForecaster().fit(history.loc[:origin]).predict(12, exog=future)
+    got = table[table["origin"] == origin].set_index("target")
+    np.testing.assert_allclose(got["mean"], direct["mean"])
+    # a truncated final window is accepted and forecasts only the available months
+    last = table[table["origin"] == per_origin.index[-1]]
+    assert list(last["target"]) == [history.index[-1]]
+    # the model is correctly specified here, so a correct handoff forecasts accurately
+    assert ((table["mean"] / table["actual"] - 1).abs() < 0.05).all()
+
+
+def test_plot_scenarios_writes_png(panel, tmp_path):
+    table = run_scenarios(panel, horizon=6)
+    path = tmp_path / "figs" / "scenarios.png"
+    plot_scenarios(panel, table, path)
+    assert path.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
+
+
+def test_scenarios_cli(panel, tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(scenarios, "load_panel", lambda: panel)
+    out = tmp_path / "chart.png"
+    scenarios.main(["--out", str(out)])
+    printed = capsys.readouterr().out
+    assert all(name in printed for name in ["baseline", "+100bp", "-100bp", "time_deposit_rate"])
+    assert out.read_bytes().startswith(b"\x89PNG")
