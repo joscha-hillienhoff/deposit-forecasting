@@ -32,6 +32,7 @@ uv run deposit-forecasting-data          # load the panel from the committed cac
 uv run deposit-forecasting-data --refresh  # download again and overwrite data/raw/
 uv run deposit-forecasting-backtest      # rolling-origin backtest of all models (--out DIR writes CSVs)
 uv run deposit-forecasting-scenarios     # +/-100 bp rate scenarios, saves docs/figures/rate_scenarios.png
+uv run deposit-forecasting-explain       # SHAP summary plots of the gradient-boosting model (--out DIR)
 uv run pytest                            # offline tests
 ```
 
@@ -42,7 +43,7 @@ uv run pytest                            # offline tests
 - [x] Rolling-origin backtest
 - [x] Exponential smoothing and SARIMA
 - [x] Rate regression and scenarios
-- [ ] Gradient boosting
+- [x] Gradient boosting
 - [ ] Results and recommendation
 
 ## Results
@@ -51,6 +52,10 @@ To be added once models and the backtest exist. Meanwhile, the rate scenarios (p
 shift of the ECB deposit facility rate against unchanged rates, 24 months):
 
 ![Deposit scenarios for +100 bp and -100 bp rate shocks](docs/figures/rate_scenarios.png)
+
+![SHAP summary of the 12-month gradient-boosting model](docs/figures/shap_h12.png)
+
+At the 12-month horizon the LightGBM model relies mainly on the spread of the target month and on the deposit facility rate (SHAP summary on the full history).
 
 ## Data source
 

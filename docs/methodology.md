@@ -299,3 +299,70 @@ too narrow, a much higher one that it is uninformative. Coverage is a mean over 
 forecasts from adjacent origins, which are strongly dependent, so small gaps to the nominal
 level are not significant. Rejected: interval scores, which combine width and coverage in one
 number that is harder to read.
+
+## Gradient boosting
+
+**Target: cumulative log change, not the level.** Decision: the model predicts
+`log(deposits[t+h]) - log(deposits[t])` and the forecast is the last value times the
+exponential of the prediction. Reason: trees predict piecewise-constant values and cannot
+extrapolate a trending level beyond the range seen in training; a change is roughly stationary
+and a log change makes the effect proportional to the level. Rejected: fitting the level
+directly, which would flatten out below the latest values.
+
+**Direct strategy.** Decision: one model per horizon `h` (1 to 12), each trained on the
+cumulative change from the origin to `origin + h`. Reason: errors do not compound through
+recursive feedback of the model's own forecasts, and every horizon gets its own band.
+Rejected: a recursive one-step model, which needs forecasts of all features in between and
+accumulates their errors. The price is that the horizons are fitted independently and the
+longest ones have the fewest training rows.
+
+**Features.** Decision: twelve named features, all known at the origin except the last. Lags
+of the monthly log change (`lag_1`, `lag_2`, `lag_3`, `lag_6`, `lag_12`), the rolling 12-month
+change (`roll_12`), the spread and the deposit facility rate at the origin (`spread`,
+`deposit_facility_rate`) and their recent changes (`spread_chg_3`, `dfr_chg_6`), the calendar
+month of the target (`target_month`) and the spread of the target month (`spread_target`,
+taken from `exog`, so ex-post conditional exactly like the backtest of the other driver
+models). Reason: momentum, seasonality and the rate drivers named in the data section, with
+few enough features for 100 to 280 training rows. Rejected: a long list of lags and
+transformations, which invites overfitting and makes the SHAP picture unreadable. Training
+rows start 12 months into the history because the longest lag needs them.
+
+**Quantile band.** Decision: per horizon, three LightGBM models with the quantile objective at
+the lower tail, 0.5 and the upper tail of the shared level (10 %, 50 %, 90 % for the default
+80 %). The median model is the point forecast ("mean" in the interface), and the three values
+are sorted per forecast month so that `lower <= mean <= upper` always holds. Reason: the band
+comes from the model's own conditional distribution and needs no Gaussian assumption.
+Rejected: a symmetric band from in-sample residuals, which understates uncertainty because
+the in-sample fit is better than the out-of-sample one. The median is the natural point
+forecast of the quantile objective, but it differs from a conditional mean if the
+distribution is skewed.
+
+**Fixed, conservative hyperparameters.** Decision: 100 rounds, learning rate 0.05, trees with
+at most 4 leaves and depth 2, at least 15 rows per leaf, L2 regularisation 5, no row or
+feature subsampling, fixed seed, single-threaded deterministic fits. They were set before the
+first backtest from general guidance for small tabular data and were never changed afterwards;
+nothing is tuned on the evaluation period (the backtest was run once with them). Reason:
+with a few hundred rows the variance of a flexible model dominates, and a tuning loop over
+overlapping rolling-origin forecasts would leak the evaluation into the model. Rejected:
+per-origin or global hyperparameter search, which would need a nested validation scheme
+that the short history cannot afford.
+
+**SHAP for transparency.** Decision: `deposit-forecasting-explain` fits the model on the
+full history and explains the median model of the 1-month and 12-month horizons with
+`TreeExplainer`; it writes summary plots to `docs/figures/` and prints the mean absolute SHAP
+value per feature (in log-change units). Reason: SHAP values are exact and additive for trees
+and show which drivers move a forecast and in which direction. They describe the fitted
+model's use of the features, not causal effects, and they are computed on the training rows.
+Rejected: built-in split-count importances, which show no direction and overstate
+high-cardinality features.
+
+**Why a simple model can beat a complex one here.** About 280 monthly observations are few for
+a flexible learner: its variance is large relative to the signal, the 12-month models have
+even fewer rows, and consecutive monthly rows overlap heavily, so the effective sample is
+smaller than it looks. The series contains a handful of regimes (low rates for a decade, the
+rate turn of 2022-2023), so the model has seen few examples of a regime change and has to
+extrapolate when one arrives; trees cannot extrapolate beyond the feature range they saw, and
+a plain drift or a linear rate regression can. A simple model has few parameters to
+estimate and degrades gracefully; a complex one only wins if the extra flexibility captures
+structure that the sample can pin down. Rejected: assuming that the more complex model is the
+better one. The backtest decides, per horizon and segment.
