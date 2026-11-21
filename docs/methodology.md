@@ -97,74 +97,64 @@ data exists only in aggregate, so client-level departures are not observable. Re
 the ECB aggregate, where no such schedule exists. The ECB backtest uses the real data without
 outflows; the synthetic book only illustrates the logic and proves nothing about real accuracy.
 
-## Backtesting
+## Exponential smoothing and SARIMA
 
-**Rolling origin instead of a single split.** Decision: forecast from many origins, one per
-month, and average the errors per horizon. Reason: a single train/test split gives one
-error path whose value depends on the split date (in this series, on whether it falls before
-or after the rate turn) and leaves too few forecasts for stable coverage estimates. Rejected:
-a single hold-out split.
+Both models are in `classical.py`, use the shared interface and are scored by the same
+backtest. Neither uses `exog`.
 
-**Expanding window.** Decision: each origin fits on all history up to and including the
-origin, with a fresh model instance and no state carried over. Reason: the history is short
-(under 25 years of monthly data), so discarding early observations costs information, and
-models that want a shorter memory (such as the drift window) say so themselves. Rejected: a
-sliding window, which would silently give every model the same short memory.
+**Log transform.** Decision: model log deposits and back-transform forecasts with `exp`.
+Reason: deposits grew several-fold over the sample, so seasonal swings and trend are
+proportional to the level, and a log scale makes them roughly constant; it also keeps the
+band positive. Rejected: modelling the level, which would need a multiplicative form or let
+the seasonal amplitude stay fixed while the level multiplies.
 
-**No look-ahead.** Decision: the model receives only the panel rows up to the origin. Reason:
-the evaluation is only meaningful if the information set is that of a real forecast at that
-date. Caveat: the panel is the latest data vintage, so revisions to past values are not
-reproduced.
+**Damped additive trend (ETS).** Decision: ETS(A,Ad,A), additive error, damped additive trend,
+additive seasonality, fixed in advance and never searched per origin; parameters and initial
+states are re-estimated at each origin. Reason: on the log scale an additive trend is a
+constant growth rate, and damping stops a growth rate estimated in one regime from being
+extrapolated for a year; the specification is the same for every origin, so no choice can
+leak information from the evaluation period. Rejected: an undamped trend, which extrapolates
+the latest growth rate at full strength, and automatic selection among ETS variants per
+origin, which makes the model change over time and is hard to audit.
 
-**First origin 2010-12.** Decision: the first origin is configurable and defaults to 2010-12.
-Reason: that leaves eight years (96 months) of history, enough for every planned model,
-including seasonal ones and a 36-month drift window. Rejected: starting at the minimum any
-model could run on, which would score the most data-starved fits.
+**Additive seasonality on the log scale.** Decision: monthly seasonality (period 12) is
+additive in logs, i.e. multiplicative in levels. Reason: it follows from the log transform
+and lets the seasonal effect scale with the level. Rejected: a multiplicative seasonal term
+on the log scale, which has no interpretation there; and seasonal dummies, which would be a
+separate model rather than part of the smoothing.
 
-**Horizons 1 to 12 months.** Decision: every origin forecasts up to 12 months, and a horizon is
-scored only if its target month is realised, so the last origins contribute fewer horizons.
-Reason: one year covers the planning range and one full seasonal cycle. Rejected: padding the
-end with partial scores or dropping the last 11 origins, which would waste the latest data.
-Near the end the models are asked only for the realised months, which for any model whose
-forecast for month h does not depend on the requested horizon is the same as truncating a
-12-month forecast.
+**Orders chosen before the first origin (SARIMA).** Decision: orders were selected once by
+AIC over a small grid (p, q in 0..2, seasonal P, Q in 0..1, with d = D = 1 fixed in advance)
+using only the data up to 2010-12, the first backtest origin, and are then held fixed for every
+origin. Result: SARIMA(1,1,2)(0,1,1)12, stored as constants and reproducible with
+`uv run python -m deposit_forecasting.classical`. Reason: choosing orders on the evaluation
+period would be look-ahead; AIC is not comparable across differencing orders, hence fixed
+d and D, and a trending seasonal stock calls for one regular and one seasonal difference.
+Rejected: re-selecting orders at every origin, which costs a grid search per origin and
+lets the model structure drift, and selecting on the full sample, which is look-ahead. The
+parameters are still re-estimated at each origin. The model is fitted on 100 times log
+deposits, which only rescales the series: with the raw log the tiny innovation variance made
+the optimiser fail to converge at some origins.
 
-**Ex-post conditional evaluation of drivers.** Decision: the realised driver columns (all
-panel columns except `deposits`) of the forecast months are passed as `exog`. Reason: driver
-models are then judged on how well they translate a rate path into deposits, not on how well
-the rate path was guessed, and models that ignore `exog` are unaffected. This is not a real-time forecast: a user would have
-to supply scenario paths instead. Rejected: forecasting the drivers too, which mixes two questions and
-needs a second model.
+**Model-based intervals at the shared level.** Decision: intervals come from the fitted
+model (the ETS state-space forecast distribution, SARIMA `get_forecast`) at the shared level
+and are back-transformed with `exp`. Reason: the bands then widen with the horizon as the
+model implies and need no extra calibration step. Both assume Gaussian innovations with
+constant variance and ignore parameter uncertainty, so observed coverage can differ from
+the nominal level; the backtest reports it. Rejected: bootstrap or empirical-error bands,
+which are costlier and add a second source of choices.
 
-**Segment by target month.** Decision: scores are reported for the full period and for the
-2022-2023 rate turn, selected by the month being forecast (2022-01 to 2023-12); the windows
-are a parameter. Reason: the turn is the stress test for a driver-based model, and a forecast
-belongs to the regime of the month it predicts, however early it was made. Rejected: selecting
-by origin, which would mix forecasts for the turn with forecasts for the calm period after it.
-Within the turn the number of forecasts is small (24 per horizon), so differences between
-models there are indicative.
+**Back-transformed mean is a median.** Decision: `mean` is `exp` of the log-scale forecast
+and is therefore the conditional median, not the conditional mean, which is larger by about
+half the log variance. Reason: quantiles survive a monotone transform, so the band keeps
+its nominal level and stays consistent with the point forecast; at the horizons and
+variances here the difference is small. Rejected: a bias-corrected mean, which relies more
+strongly on the normality assumption and would sit off-centre in the band.
 
-**MAE as the main metric.** Decision: the headline metric is MAE in EUR bn. Reason: it is in
-the unit of the target, easy to explain, and weights every euro of error equally. Rejected:
-RMSE, whose weight on single large errors makes the ranking depend on a few months.
-
-**MAPE as a secondary metric.** Decision: report MAPE (%) next to MAE. Reason: it lets a reader
-judge the error relative to the level. It misleads when the series is near zero or changes
-sign (the denominator explodes), for flows instead of stocks (the same absolute error looks
-huge in a quiet month), when over- and under-forecasts are treated unequally (the same
-absolute error is a larger percentage when the actual is small, so MAPE favours forecasts that
-are too high), and when comparing series of different scale or level. Deposits are a large,
-strictly positive stock, so none of these dominates here, but the trend makes the percentage
-error shrink mechanically as the level rises, so MAPE is never the only metric. Rejected:
-sMAPE, which fixes one asymmetry but has its own.
-
-**Coverage next to the nominal level.** Decision: the share of actuals inside
-`[lower, upper]` is shown next to the nominal level (default 80 %). Reason: a band is only
-useful if its observed coverage is close to its claim; a much lower value means the band is
-too narrow, a much higher one that it is uninformative. Coverage is a mean over overlapping
-forecasts from adjacent origins, which are strongly dependent, so small gaps to the nominal
-level are not significant. Rejected: interval scores, which combine width and coverage in one
-number that is harder to read.
+**Failures raise.** Decision: a fit that does not converge or yields non-finite values raises
+an error; convergence warnings themselves are silenced so the CLI output stays clean. Reason:
+a silent fallback would put another model's forecasts under this model's name. Rejected:
+falling back to a simpler model or the previous origin's parameters.
 
 ## Rate regression and scenarios
 
@@ -240,3 +230,72 @@ relations are stable (no structural break, although the sample contains the nega
 and the 2022 turn), and uses German aggregate data without customer segments, so differences
 between household types are invisible. The scenarios show conditional model responses, not
 forecasts of what the ECB will do.
+
+## Backtesting
+
+**Rolling origin instead of a single split.** Decision: forecast from many origins, one per
+month, and average the errors per horizon. Reason: a single train/test split gives one
+error path whose value depends on the split date (in this series, on whether it falls before
+or after the rate turn) and leaves too few forecasts for stable coverage estimates. Rejected:
+a single hold-out split.
+
+**Expanding window.** Decision: each origin fits on all history up to and including the
+origin, with a fresh model instance and no state carried over. Reason: the history is short
+(under 25 years of monthly data), so discarding early observations costs information, and
+models that want a shorter memory (such as the drift window) say so themselves. Rejected: a
+sliding window, which would silently give every model the same short memory.
+
+**No look-ahead.** Decision: the model receives only the panel rows up to the origin. Reason:
+the evaluation is only meaningful if the information set is that of a real forecast at that
+date. Caveat: the panel is the latest data vintage, so revisions to past values are not
+reproduced.
+
+**First origin 2010-12.** Decision: the first origin is configurable and defaults to 2010-12.
+Reason: that leaves eight years (96 months) of history, enough for every planned model,
+including seasonal ones and a 36-month drift window. Rejected: starting at the minimum any
+model could run on, which would score the most data-starved fits.
+
+**Horizons 1 to 12 months.** Decision: every origin forecasts up to 12 months, and a horizon is
+scored only if its target month is realised, so the last origins contribute fewer horizons.
+Reason: one year covers the planning range and one full seasonal cycle. Rejected: padding the
+end with partial scores or dropping the last 11 origins, which would waste the latest data.
+Near the end the models are asked only for the realised months, which for any model whose
+forecast for month h does not depend on the requested horizon is the same as truncating a
+12-month forecast.
+
+**Ex-post conditional evaluation of drivers.** Decision: the realised driver columns (all
+panel columns except `deposits`) of the forecast months are passed as `exog`. Reason: driver
+models are then judged on how well they translate a rate path into deposits, not on how well
+the rate path was guessed, and models that ignore `exog` are unaffected. This is not a real-time forecast: a user would have
+to supply scenario paths instead. Rejected: forecasting the drivers too, which mixes two questions and
+needs a second model.
+
+**Segment by target month.** Decision: scores are reported for the full period and for the
+2022-2023 rate turn, selected by the month being forecast (2022-01 to 2023-12); the windows
+are a parameter. Reason: the turn is the stress test for a driver-based model, and a forecast
+belongs to the regime of the month it predicts, however early it was made. Rejected: selecting
+by origin, which would mix forecasts for the turn with forecasts for the calm period after it.
+Within the turn the number of forecasts is small (24 per horizon), so differences between
+models there are indicative.
+
+**MAE as the main metric.** Decision: the headline metric is MAE in EUR bn. Reason: it is in
+the unit of the target, easy to explain, and weights every euro of error equally. Rejected:
+RMSE, whose weight on single large errors makes the ranking depend on a few months.
+
+**MAPE as a secondary metric.** Decision: report MAPE (%) next to MAE. Reason: it lets a reader
+judge the error relative to the level. It misleads when the series is near zero or changes
+sign (the denominator explodes), for flows instead of stocks (the same absolute error looks
+huge in a quiet month), when over- and under-forecasts are treated unequally (the same
+absolute error is a larger percentage when the actual is small, so MAPE favours forecasts that
+are too high), and when comparing series of different scale or level. Deposits are a large,
+strictly positive stock, so none of these dominates here, but the trend makes the percentage
+error shrink mechanically as the level rises, so MAPE is never the only metric. Rejected:
+sMAPE, which fixes one asymmetry but has its own.
+
+**Coverage next to the nominal level.** Decision: the share of actuals inside
+`[lower, upper]` is shown next to the nominal level (default 80 %). Reason: a band is only
+useful if its observed coverage is close to its claim; a much lower value means the band is
+too narrow, a much higher one that it is uninformative. Coverage is a mean over overlapping
+forecasts from adjacent origins, which are strongly dependent, so small gaps to the nominal
+level are not significant. Rejected: interval scores, which combine width and coverage in one
+number that is harder to read.

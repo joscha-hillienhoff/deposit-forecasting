@@ -275,7 +275,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.26" },
     { name = "pandas", specifier = ">=2.2" },
     { name = "requests", specifier = ">=2.31" },
-    { name = "statsmodels", specifier = ">=0.15.0" },
+    { name = "statsmodels", specifier = ">=0.14" },
 ]
 
 [package.metadata.requires-dev]
