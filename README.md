@@ -97,8 +97,8 @@ LightGBM wins at 12 months but with bands that are too narrow (61 % against 80 %
 turn changes the picture: deposits grew only about 2.6 % in 2022, peaked in late 2022 and fell in 2023
 while rates rose, and the trend-following drift and the rate regression overshoot, with MAE two to three times that of the naive forecast
 at 12 months and bands that almost never contain the outcome. ETS, which damps its trend, copes
-best up to eight months; at 12 months the naive forecast is the most accurate, and no band keeps
-its nominal coverage at long horizons. The turn has only 24 forecasts per horizon, so
+best up to eight months; at 12 months the naive forecast is the most accurate. The bands of
+every other model fall far below the nominal level at long horizons, while the ETS bands hold near it (79 % at 12 months). The turn has only 24 forecasts per horizon, so
 differences between models there are indicative.
 
 Rate scenarios (parallel +/-100 bp shift of the ECB deposit facility rate against unchanged
@@ -113,7 +113,7 @@ facility rate at the 12-month horizon (SHAP summary on the full history):
 
 ## Model comparison
 
-Accuracy summarises both segments (MAE rank among six models: 1 = best). Transparency asks
+Accuracy summarises both segments (qualitative ratings of MAE across the six models). Transparency asks
 whether each driver can be read and explained. Effort covers implementation, data, maintenance
 and compute.
 

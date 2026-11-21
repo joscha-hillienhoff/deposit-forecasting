@@ -412,7 +412,8 @@ The rate regression was estimated on a sample dominated by low rates, so the res
 large spread change is an extrapolation of a linear, stable relationship. ETS limits the
 damage because its damped trend flattens, and the naive forecast is hard to beat at 12 months.
 The practical lessons are that bands fitted in calm periods are too narrow in a regime change
-(coverage falls well below 80 %) and that a model's explanatory power in normal times does not
+(at 12 months the observed coverage of the drift, rate regression, LightGBM, naive and SARIMA bands
+is 0 to 46 % against 80 %; only the ETS bands hold, at 79 %) and that a model's explanatory power in normal times does not
 guarantee it at a structural break.
 
 **What would a bank additionally consider?** The ECB aggregate hides what a bank sees in its
