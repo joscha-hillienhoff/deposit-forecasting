@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from deposit_forecasting.backtest import DEFAULT_MODELS
+from deposit_forecasting.backtest import DEFAULT_MODELS, run_backtest
 from deposit_forecasting.explain import mean_abs_shap, save_summary_plots
 from deposit_forecasting.gbm import GradientBoostingForecaster, origin_features
 
@@ -96,3 +96,59 @@ def test_shap_table_and_plots(tmp_path):
         assert (part["mean_abs_shap"] >= 0).all()
     paths = save_summary_plots(model, tmp_path, horizons=(1,))
     assert [p.name for p in paths] == ["shap_h1.png"] and paths[0].stat().st_size > 0
+
+
+def test_training_target_months_align_with_horizon():
+    panel = make_panel()
+    model = GradientBoostingForecaster(max_horizon=3, params=FAST).fit(panel)
+    spread = panel["spread"]
+    for h in (1, 2, 3):
+        X = model.train_X_[h]
+        expected = spread.shift(-h).reindex(X.index)
+        np.testing.assert_allclose(X["spread_target"].to_numpy(), expected.to_numpy())
+        assert (X["target_month"].to_numpy() == (X.index + h).month).all()
+        assert X.index[-1] == panel.index[-1 - h]
+
+
+def test_constant_growth_is_extrapolated_by_horizon():
+    growth = 0.01
+    index = pd.period_range("2010-01", periods=60, freq="M")
+    panel = pd.DataFrame(
+        {
+            "deposits": 100.0 * np.exp(growth * np.arange(60)),
+            "overnight_rate": 0.1,
+            "spread": 0.5 + 0.1 * np.sin(np.arange(60)),
+            "deposit_facility_rate": 0.0,
+        },
+        index=index,
+    )
+    history, future = panel.iloc[:-3], panel.iloc[-3:]
+    forecast = (
+        GradientBoostingForecaster(max_horizon=3, params=FAST)
+        .fit(history)
+        .predict(3, exog=future.drop(columns="deposits"))
+    )
+    last = history["deposits"].iloc[-1]
+    expected = last * np.exp(growth * np.arange(1, 4))
+    np.testing.assert_allclose(forecast["mean"].to_numpy(), expected, rtol=1e-3)
+
+
+def test_runs_through_rolling_origin_backtest():
+    panel = make_panel(44)
+    first = panel.index[35]
+    forecasts = run_backtest(
+        panel,
+        {"lightgbm": lambda: GradientBoostingForecaster(max_horizon=3, params=FAST)},
+        first_origin=first,
+        max_horizon=3,
+    )
+    origins = panel.index[35:-1]
+    assert sorted(forecasts["origin"].unique()) == list(origins)
+    for origin, part in forecasts.groupby("origin"):
+        remaining = len(panel) - 1 - panel.index.get_loc(origin)
+        assert list(part["horizon"]) == list(range(1, min(3, remaining) + 1))
+        assert list(part["target"]) == list(panel.index[panel.index > origin][: len(part)])
+        np.testing.assert_allclose(part["actual"], panel.loc[part["target"], "deposits"])
+    assert np.isfinite(forecasts[["mean", "lower", "upper"]].to_numpy()).all()
+    assert (forecasts["lower"] <= forecasts["mean"]).all()
+    assert (forecasts["mean"] <= forecasts["upper"]).all()
