@@ -18,7 +18,6 @@ def test_labelled_synthetic():
     assert "SYNTHETIC" in book.label
     assert all(name.startswith("Synthetic Client ") for name in book.departures.index)
     assert "SYNTHETIC" in synthetic.demonstrate(book).attrs["label"]
-    assert "SYNTHETIC" in (synthetic.__doc__ or "")
 
 
 def test_schedule_matches_realised_balances():

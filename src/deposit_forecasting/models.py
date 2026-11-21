@@ -140,8 +140,12 @@ class DriftForecaster(_RandomWalkBand):
         super().__init__(level)
         if window is not None and window < 2:
             raise ValueError("window must be at least 2 monthly changes, or None")
-        if planned_outflows is not None and not isinstance(planned_outflows.index, pd.PeriodIndex):
-            raise ValueError("planned_outflows must be indexed by a monthly PeriodIndex")
+        if planned_outflows is not None:
+            index = planned_outflows.index
+            if not isinstance(index, pd.PeriodIndex) or index.freqstr != "M":
+                raise ValueError("planned_outflows must be indexed by a monthly PeriodIndex")
+            if planned_outflows.isna().any():
+                raise ValueError("planned_outflows must not contain missing values")
         self.window = window
         self.planned_outflows = planned_outflows
 

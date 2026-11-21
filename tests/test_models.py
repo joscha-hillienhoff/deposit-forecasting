@@ -73,6 +73,19 @@ def test_drift_window_parameter():
         DriftForecaster(window=1)
 
 
+@pytest.mark.parametrize("freq", ["D", "Q", "Y"])
+def test_non_monthly_outflow_schedule_is_rejected(freq):
+    schedule = pd.Series([5.0], index=pd.PeriodIndex(["2020-06"], freq=freq))
+    with pytest.raises(ValueError, match="monthly PeriodIndex"):
+        DriftForecaster(planned_outflows=schedule)
+
+
+def test_outflow_schedule_with_missing_amount_is_rejected():
+    schedule = pd.Series([float("nan")], index=pd.PeriodIndex(["2020-06"], freq="M"))
+    with pytest.raises(ValueError, match="missing"):
+        DriftForecaster(planned_outflows=schedule)
+
+
 def test_planned_outflows_are_subtracted_cumulatively():
     hist = make_history([10.0, 12.0, 14.0, 16.0], start="2020-01")  # origin 2020-04
     schedule = pd.Series(
