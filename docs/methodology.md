@@ -405,7 +405,7 @@ sets the bar any more complex model has to clear.
 while rates were very low. When the ECB raised rates, growth stopped and the stock fell, so
 trend-following models kept extrapolating growth. From a 2021-12 origin the drift and the rate
 regression forecast continued growth, to 1946 and 1990 EUR bn at 12 months, while deposits grew
-only about 2.6 % to 1868 EUR bn in 2022, peaked at the end of 2022 and fell in 2023. Within the
+only about 2.6 % to 1868 EUR bn in 2022, peaked in late 2022 and fell in 2023. Within the
 segment the drift and the rate regression have a 12-month MAE of 131 and 159 EUR bn against 63
 for the naive forecast, and their 80 % bands contain none of the realised values at 12 months.
 The rate regression was estimated on a sample dominated by low rates, so the response to a
