@@ -41,12 +41,16 @@ uv run pytest                            # offline tests
 - [x] Rolling-origin backtest
 - [ ] Exponential smoothing and SARIMA
 - [ ] Rate regression and scenarios
-- [ ] Gradient boosting
+- [x] Gradient boosting
 - [ ] Results and recommendation
 
 ## Results
 
 To be added once models and the backtest exist.
+
+![SHAP summary of the 12-month gradient-boosting model](docs/figures/shap_h12.png)
+
+At the 12-month horizon the LightGBM model relies mainly on the spread of the target month and on the deposit facility rate (SHAP summary on the full history).
 
 ## Data source
 

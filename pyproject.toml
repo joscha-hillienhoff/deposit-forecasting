@@ -5,14 +5,18 @@ description = "Comparing forecasting models for household overnight deposits on 
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "lightgbm>=4.7.0",
+    "matplotlib>=3.11.2",
     "numpy>=1.26",
     "pandas>=2.2",
     "requests>=2.31",
+    "shap>=0.54.1",
 ]
 
 [project.scripts]
 deposit-forecasting-data = "deposit_forecasting.data:main"
 deposit-forecasting-backtest = "deposit_forecasting.backtest:main"
+deposit-forecasting-explain = "deposit_forecasting.explain:main"
 
 [dependency-groups]
 dev = [
