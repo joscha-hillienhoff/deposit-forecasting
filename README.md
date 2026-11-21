@@ -30,7 +30,8 @@ percentage points). The latest deposits value is provisional; its status is avai
 uv sync                                  # install dependencies
 uv run deposit-forecasting-data          # load the panel from the committed cache, print a summary
 uv run deposit-forecasting-data --refresh  # download again and overwrite data/raw/
-uv run deposit-forecasting-backtest      # rolling-origin backtest of the baselines (--out DIR writes CSVs)
+uv run deposit-forecasting-backtest      # rolling-origin backtest of the default models (--out DIR writes CSVs)
+uv run deposit-forecasting-explain       # SHAP summary plots of the gradient-boosting model (--out DIR)
 uv run pytest                            # offline tests
 ```
 
