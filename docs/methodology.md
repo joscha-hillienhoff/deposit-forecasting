@@ -370,8 +370,9 @@ better one. The backtest decides, per horizon and segment.
 ## Questions and answers
 
 **Why rolling backtesting instead of a simple train/test split?** A single split yields one
-error path whose value depends on where the split falls. Here that matters: a split before 2022
-never tests the rate turn, a split after it tests almost nothing else, and the ranking of the
+error path whose value depends on where the split falls. Here that matters: a split dated after
+2023 never tests the rate turn, while a split dated early in 2022 makes the turn most of the
+test set, and the ranking of the
 models differs between the two (over all months SARIMA leads, in the 2022-2023 segment the
 naive forecast and ETS do). A rolling origin gives 189 one-month and 178 twelve-month forecasts
 under the information set of each date, so errors, horizon profiles and band coverage can be
