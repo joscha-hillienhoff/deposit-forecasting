@@ -4,7 +4,7 @@ import pytest
 
 from deposit_forecasting import backtest
 from deposit_forecasting.backtest import RATE_TURN, run_backtest, score
-from deposit_forecasting.models import Forecaster, NaiveForecaster
+from deposit_forecasting.models import DriftForecaster, Forecaster, NaiveForecaster
 
 
 def make_panel(months: int = 30, start: str = "2020-01") -> pd.DataFrame:
@@ -122,6 +122,8 @@ def test_score_columns_stable():
 
 def test_cli_smoke(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(backtest, "load_panel", lambda: make_panel(40, "2018-01"))
+    models = {"naive": NaiveForecaster, "drift": DriftForecaster}
+    monkeypatch.setattr(backtest, "DEFAULT_MODELS", models)
     backtest.main(["--first-origin", "2019-01", "--out", str(tmp_path / "out")])
     printed = capsys.readouterr().out
     assert "naive" in printed and "drift" in printed
