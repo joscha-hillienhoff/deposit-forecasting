@@ -97,6 +97,65 @@ data exists only in aggregate, so client-level departures are not observable. Re
 the ECB aggregate, where no such schedule exists. The ECB backtest uses the real data without
 outflows; the synthetic book only illustrates the logic and proves nothing about real accuracy.
 
+## Exponential smoothing and SARIMA
+
+Both models are in `classical.py`, use the shared interface and are scored by the same
+backtest. Neither uses `exog`.
+
+**Log transform.** Decision: model log deposits and back-transform forecasts with `exp`.
+Reason: deposits grew several-fold over the sample, so seasonal swings and trend are
+proportional to the level, and a log scale makes them roughly constant; it also keeps the
+band positive. Rejected: modelling the level, which would need a multiplicative form or let
+the seasonal amplitude stay fixed while the level multiplies.
+
+**Damped additive trend (ETS).** Decision: ETS(A,Ad,A), additive error, damped additive trend,
+additive seasonality, fixed in advance and never searched per origin; parameters and initial
+states are re-estimated at each origin. Reason: on the log scale an additive trend is a
+constant growth rate, and damping stops a growth rate estimated in one regime from being
+extrapolated for a year; the specification is the same for every origin, so no choice can
+leak information from the evaluation period. Rejected: an undamped trend, which extrapolates
+the latest growth rate at full strength, and automatic selection among ETS variants per
+origin, which makes the model change over time and is hard to audit.
+
+**Additive seasonality on the log scale.** Decision: monthly seasonality (period 12) is
+additive in logs, i.e. multiplicative in levels. Reason: it follows from the log transform
+and lets the seasonal effect scale with the level. Rejected: a multiplicative seasonal term
+on the log scale, which has no interpretation there; and seasonal dummies, which would be a
+separate model rather than part of the smoothing.
+
+**Orders chosen before the first origin (SARIMA).** Decision: orders were selected once by
+AIC over a small grid (p, q in 0..2, seasonal P, Q in 0..1, with d = D = 1 fixed in advance)
+using only the data up to 2010-12, the first backtest origin, and are then held fixed for every
+origin. Result: SARIMA(1,1,2)(0,1,1)12, stored as constants and reproducible with
+`uv run python -m deposit_forecasting.classical`. Reason: choosing orders on the evaluation
+period would be look-ahead; AIC is not comparable across differencing orders, hence fixed
+d and D, and a trending seasonal stock calls for one regular and one seasonal difference.
+Rejected: re-selecting orders at every origin, which costs a grid search per origin and
+lets the model structure drift, and selecting on the full sample, which is look-ahead. The
+parameters are still re-estimated at each origin. The model is fitted on 100 times log
+deposits, which only rescales the series: with the raw log the tiny innovation variance made
+the optimiser fail to converge at some origins.
+
+**Model-based intervals at the shared level.** Decision: intervals come from the fitted
+model (the ETS state-space forecast distribution, SARIMA `get_forecast`) at the shared level
+and are back-transformed with `exp`. Reason: the bands then widen with the horizon as the
+model implies and need no extra calibration step. Both assume Gaussian innovations with
+constant variance and ignore parameter uncertainty, so observed coverage can differ from
+the nominal level; the backtest reports it. Rejected: bootstrap or empirical-error bands,
+which are costlier and add a second source of choices.
+
+**Back-transformed mean is a median.** Decision: `mean` is `exp` of the log-scale forecast
+and is therefore the conditional median, not the conditional mean, which is larger by about
+half the log variance. Reason: quantiles survive a monotone transform, so the band keeps
+its nominal level and stays consistent with the point forecast; at the horizons and
+variances here the difference is small. Rejected: a bias-corrected mean, which relies more
+strongly on the normality assumption and would sit off-centre in the band.
+
+**Failures raise.** Decision: a fit that does not converge or yields non-finite values raises
+an error; convergence warnings themselves are silenced so the CLI output stays clean. Reason:
+a silent fallback would put another model's forecasts under this model's name. Rejected:
+falling back to a simpler model or the previous origin's parameters.
+
 ## Backtesting
 
 **Rolling origin instead of a single split.** Decision: forecast from many origins, one per

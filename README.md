@@ -39,7 +39,7 @@ uv run pytest                            # offline tests
 - [x] Data
 - [x] Baselines
 - [x] Rolling-origin backtest
-- [ ] Exponential smoothing and SARIMA
+- [x] Exponential smoothing and SARIMA
 - [ ] Rate regression and scenarios
 - [ ] Gradient boosting
 - [ ] Results and recommendation

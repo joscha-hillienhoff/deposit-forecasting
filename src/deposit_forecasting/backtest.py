@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from deposit_forecasting.classical import EtsForecaster, SarimaForecaster
 from deposit_forecasting.data import load_panel
 from deposit_forecasting.models import (
     DEFAULT_LEVEL,
@@ -32,6 +33,8 @@ SCORE_COLUMNS = ["model", "segment", "horizon", "n", "mae", "mape", "coverage", 
 DEFAULT_MODELS: dict[str, Callable[[], Forecaster]] = {
     "naive": NaiveForecaster,
     "drift": DriftForecaster,
+    "ets": EtsForecaster,
+    "sarima": SarimaForecaster,
 }
 TABLE_HORIZONS = (1, 3, 6, 12)
 
