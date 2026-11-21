@@ -65,7 +65,7 @@ cases into every evaluation.
 80 % interval), configurable. Reason: bands are only comparable if they claim the same
 coverage; 80 % keeps bands informative at the small sample sizes of a rolling backtest.
 Rejected: 95 %, whose wide bands are hard to check empirically with few forecasts. The level is
-nominal; observed coverage is evaluated later, not assumed.
+nominal; observed coverage is evaluated by the backtest, not assumed.
 
 **Naive baseline.** Decision: mean = last value. Reason: the standard minimum benchmark that
 any model must beat. Rejected: a historical mean, which ignores that the level is persistent.
@@ -132,8 +132,8 @@ forecast for month h does not depend on the requested horizon is the same as tru
 **Ex-post conditional evaluation of drivers.** Decision: the realised driver columns (all
 panel columns except `deposits`) of the forecast months are passed as `exog`. Reason: driver
 models are then judged on how well they translate a rate path into deposits, not on how well
-the rate path was guessed, and models that ignore `exog` are unaffected. This is not a real-time forecast: a user would have to supply
-scenario paths instead. Rejected: forecasting the drivers too, which mixes two questions and
+the rate path was guessed, and models that ignore `exog` are unaffected. This is not a real-time forecast: a user would have
+to supply scenario paths instead. Rejected: forecasting the drivers too, which mixes two questions and
 needs a second model.
 
 **Segment by target month.** Decision: scores are reported for the full period and for the
