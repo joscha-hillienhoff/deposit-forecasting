@@ -93,7 +93,7 @@ they were produced with `uv run deposit-forecasting-backtest --out results` on t
 Over all months every model beats the naive forecast clearly, and the seasonal statistical
 models (SARIMA, ETS) are the most accurate up to six months with well-calibrated bands, while
 LightGBM wins at 12 months but with bands that are too narrow (61 % against 80 %). The 2022-2023
-turn changes the picture: deposits stopped growing while rates rose, and the trend-following
+turn changes the picture: deposits were flat in 2022 and fell in 2023 while rates rose, and the trend-following
 drift and the rate regression overshoot, with MAE two to three times that of the naive forecast
 at 12 months and bands that almost never contain the outcome. ETS, which damps its trend, copes
 best up to eight months; at 12 months the naive forecast is the most accurate, and no band keeps

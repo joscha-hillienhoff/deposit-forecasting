@@ -403,7 +403,7 @@ sets the bar any more complex model has to clear.
 **How does the 2022-2023 rate turn affect the models?** Before 2022 deposits grew steadily
 while rates were very low. When the ECB raised rates, growth stopped and the stock fell, so
 trend-following models kept extrapolating growth. From a 2021-12 origin the rate regression
-and LightGBM forecast rising deposits, while the realised path stayed flat. Within the
+and LightGBM forecast rising deposits, while the realised path stayed flat through 2022 and fell in 2023. Within the
 segment the drift and the rate regression have a 12-month MAE of 131 and 159 EUR bn against 63
 for the naive forecast, and their 80 % bands contain none of the realised values at 12 months.
 The rate regression was estimated on a sample dominated by low rates, so the response to a
