@@ -40,13 +40,16 @@ uv run pytest                            # offline tests
 - [x] Baselines
 - [x] Rolling-origin backtest
 - [ ] Exponential smoothing and SARIMA
-- [ ] Rate regression and scenarios
+- [x] Rate regression and scenarios
 - [ ] Gradient boosting
 - [ ] Results and recommendation
 
 ## Results
 
-To be added once models and the backtest exist.
+To be added once models and the backtest exist. Meanwhile, the rate scenarios (parallel +/-100 bp
+shift of the ECB deposit facility rate against unchanged rates, 24 months):
+
+![Deposit scenarios for +100 bp and -100 bp rate shocks](docs/figures/rate_scenarios.png)
 
 ## Data source
 

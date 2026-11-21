@@ -21,6 +21,7 @@ from deposit_forecasting.models import (
     Forecaster,
     NaiveForecaster,
 )
+from deposit_forecasting.regression import RateRegressionForecaster
 
 MAX_HORIZON = 12
 DEFAULT_FIRST_ORIGIN = pd.Period("2010-12", freq="M")
@@ -32,6 +33,7 @@ SCORE_COLUMNS = ["model", "segment", "horizon", "n", "mae", "mape", "coverage", 
 DEFAULT_MODELS: dict[str, Callable[[], Forecaster]] = {
     "naive": NaiveForecaster,
     "drift": DriftForecaster,
+    "rate_regression": RateRegressionForecaster,
 }
 TABLE_HORIZONS = (1, 3, 6, 12)
 

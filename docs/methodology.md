@@ -165,3 +165,78 @@ too narrow, a much higher one that it is uninformative. Coverage is a mean over 
 forecasts from adjacent origins, which are strongly dependent, so small gaps to the nominal
 level are not significant. Rejected: interval scores, which combine width and coverage in one
 number that is harder to read.
+
+## Rate regression and scenarios
+
+**No look-ahead in the specification.** Decision: the form of the model (target, regressors, lag
+of one month, seasonal dummies, one autoregressive term) was fixed in advance from economic
+reasoning and is not searched or tuned; the only estimated quantities are OLS coefficients, which
+the backtest refits at every origin on data up to that origin. Reason: any choice made while
+looking at the evaluation period would leak into the scores. Rejected: selecting lags or
+regressors by backtest error.
+
+**Log change instead of level target.** Decision: regress the monthly log change of deposits.
+Reason: the level is trending and strongly persistent, so a level regression mostly fits the
+trend; the change is close to stationary, and log changes are growth rates, which are comparable
+between the low and the high deposit levels in the sample. Rejected: a regression in levels,
+which risks spurious fits between trending series.
+
+**Spread as the driver, lagged by one month.** Decision: the regressor is the spread between
+time-deposit and overnight rate of the previous month-end. Reason: the deposit stock is a
+month-end value, so flows during month t respond to the incentive visible at the end of month
+t-1; this also avoids simultaneity between the rates and the stock of the same month, and it
+means the first forecast month does not depend on a rate path. Rejected: the contemporaneous
+spread, and the two rates as separate regressors, which hides that households react to the
+difference.
+
+**Seasonal dummies.** Decision: eleven monthly dummies (January is the reference). Reason: the
+series is not seasonally adjusted and has a strong year-end pattern (for example November and
+December), which the baselines deliberately lack; dummies keep it visible as coefficients.
+Rejected: Fourier terms, which are less direct to read, and seasonally adjusted data.
+
+**Lagged change.** Decision: one lag of the dependent variable. Reason: monthly growth is
+persistent, and without it the residuals are autocorrelated. Rejected: more lags, which add
+coefficients that are hard to interpret for a model meant to be explained.
+
+**Plain OLS with reported coefficients.** Decision: OLS (statsmodels) and a `coefficients()`
+helper that returns estimates, standard errors and t-values. Reason: every effect is one number
+that can be explained. Rejected: regularised or non-linear fits, which trade away that
+transparency. The standard errors assume independent errors and are indicative.
+
+**Residual band.** Decision: the band is `z * sigma * sqrt(h)` on the log scale, with `sigma` the
+residual standard deviation, back-transformed with `exp`, at the shared level. Reason: it reuses
+the random-walk logic of the baselines and keeps bands comparable. It assumes independent
+monthly errors and ignores parameter uncertainty, and the mean is the median path after the
+back-transformation. Rejected: simulating the autoregressive error propagation, which adds
+machinery for a small gain. The spread path is taken as given, so the band does not include
+rate uncertainty.
+
+**Ex-post conditional backtest.** Decision: in the backtest the model receives the realised
+spread of the forecast months, as for every driver model. Reason: it measures how well rates
+are translated into deposits, not how well rates are guessed (see Backtesting). Because of the
+one-month lag only the first h-1 spread values enter an h-month forecast.
+
+**Shock definition.** Decision: a scenario is a parallel shift of the ECB deposit facility rate
+by +100 or -100 bp from the last observed month, held constant for the horizon; the baseline
+holds all rates at their last observed values. Reason: it is the simplest definition that
+isolates the effect of the policy rate. Rejected: gradual or announced rate paths, which need
+assumptions on timing that the data cannot support.
+
+**Pass-through estimation.** Decision: each bank rate is regressed on the deposit facility rate
+with one lag of itself (`rate_t = c + phi * rate_{t-1} + b * policy_t`), estimated on the full
+history; the scenario adds the implied dynamic response to the last observed rate. Reason: bank
+rates adjust gradually, and the estimate shows the known asymmetry: time-deposit rates follow the
+policy rate far more than overnight rates, so a rate rise widens the spread and a cut narrows it.
+Rejected: a static level regression, which gives only the long-run effect and applies it
+instantly, and an assumed one-to-one pass-through.
+
+**Scenario horizon.** Decision: 24 months from the last observed month. Reason: long enough
+for the slow overnight-rate adjustment and the deposit response to unfold, short enough to keep
+the linear relationship plausible. Rejected: the 12-month backtest horizon, which would stop
+before the effects mature, and longer horizons.
+
+**Limits.** The model is linear (no floor at zero rates, no saturation), assumes the estimated
+relations are stable (no structural break, although the sample contains the negative-rate era
+and the 2022 turn), and uses German aggregate data without customer segments, so differences
+between household types are invisible. The scenarios show conditional model responses, not
+forecasts of what the ECB will do.
