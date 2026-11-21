@@ -3,6 +3,7 @@ import pandas as pd
 import pytest
 
 from deposit_forecasting import classical
+from deposit_forecasting.backtest import run_backtest, score
 from deposit_forecasting.classical import (
     SARIMA_ORDER,
     SARIMA_SEASONAL_ORDER,
@@ -85,19 +86,47 @@ def test_sarima_orders_are_the_recorded_constants():
     assert fitted.result_.model.seasonal_order == SARIMA_SEASONAL_ORDER
 
 
-def test_failed_fit_raises(monkeypatch):
-    class NotConverged:
-        llf = 1.0
-        params = np.array([1.0])
-        mle_retvals = {"converged": False}
+class NotConverged:
+    llf = 1.0
+    params = np.array([1.0])
+    mle_retvals = {"converged": False}
 
-    class FakeModel:
-        def __init__(self, *args, **kwargs):
-            pass
 
-        def fit(self, **kwargs):
-            return NotConverged()
+class FakeModel:
+    def __init__(self, *args, **kwargs):
+        pass
 
-    monkeypatch.setattr(classical, "SARIMAX", FakeModel)
+    def fit(self, **kwargs):
+        return NotConverged()
+
+
+@pytest.mark.parametrize(
+    ("attribute", "cls"), [("SARIMAX", SarimaForecaster), ("ETSModel", EtsForecaster)]
+)
+def test_failed_fit_raises(monkeypatch, attribute, cls):
+    monkeypatch.setattr(classical, attribute, FakeModel)
     with pytest.raises(RuntimeError, match="did not converge"):
-        SarimaForecaster().fit(seasonal_history())
+        cls().fit(seasonal_history())
+
+
+def test_select_orders_raises_clearly_when_no_candidate_fits(monkeypatch):
+    monkeypatch.setattr(classical, "SARIMAX", FakeModel)
+    with pytest.raises(RuntimeError, match="no SARIMA candidate"):
+        classical.select_sarima_orders(seasonal_history())
+
+
+def test_classical_models_run_through_the_backtest():
+    n = 60
+    panel = seasonal_history(n=n).assign(overnight_rate=0.1, spread=0.5)
+    models = {"ets": EtsForecaster, "sarima": SarimaForecaster}
+    forecasts = run_backtest(panel, models, first_origin=panel.index[-4], max_horizon=12)
+    assert set(forecasts["model"]) == set(models)
+    # origins n-4..n-2 are forecast, each truncated to the months that are realised
+    for name in models:
+        sub = forecasts[forecasts["model"] == name]
+        assert sorted(sub["origin"].unique()) == list(panel.index[-4:-1])
+        assert sub.groupby("origin")["horizon"].max().tolist() == [3, 2, 1]
+        assert (sub["lower"] <= sub["mean"]).all() and (sub["mean"] <= sub["upper"]).all()
+    scores = score(forecasts)
+    assert set(scores["model"]) == set(models)
+    assert np.isfinite(scores["mae"]).all()

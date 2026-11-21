@@ -48,7 +48,13 @@ def _log_target(forecaster: Forecaster, history: pd.DataFrame) -> pd.Series:
     if (y <= 0).any():
         raise ValueError("deposits must be strictly positive for the log transform")
     # A plain integer index avoids statsmodels' frequency inference on a PeriodIndex.
-    return pd.Series(np.log(y.to_numpy()), index=y.index.to_timestamp(how="end").normalize())
+    return pd.Series(np.log(y.to_numpy()))
+
+
+def _require_converged(result, label: str) -> None:
+    converged = result.mle_retvals.get("converged", False)
+    if not converged or not np.isfinite(result.llf) or not np.isfinite(result.params).all():
+        raise _FitFailedError(f"{label} fit failed or did not converge")
 
 
 def _back_transform(forecaster: Forecaster, horizon: int, log_frame: pd.DataFrame):
@@ -76,7 +82,7 @@ class EtsForecaster(Forecaster):
         if len(log_y) < 2 * SEASONAL_PERIOD:
             raise ValueError("ETS needs at least two full seasonal cycles")
         model = ETSModel(
-            log_y.reset_index(drop=True),
+            log_y,
             error="add",
             trend="add",
             damped_trend=True,
@@ -86,8 +92,7 @@ class EtsForecaster(Forecaster):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", ConvergenceWarning)
             result = model.fit(disp=False, maxiter=2000)
-        if not np.isfinite(result.llf):
-            raise _FitFailedError("ETS fit did not produce a finite likelihood")
+        _require_converged(result, "ETS")
         self.result_ = result
         return self
 
@@ -116,7 +121,7 @@ class SarimaForecaster(Forecaster):
         self.result_ = None
 
     def fit(self, history: pd.DataFrame) -> SarimaForecaster:
-        log_y = SARIMA_LOG_SCALE * _log_target(self, history).reset_index(drop=True)
+        log_y = SARIMA_LOG_SCALE * _log_target(self, history)
         self.result_ = _fit_sarimax(log_y, self.order, self.seasonal_order)
         return self
 
@@ -145,9 +150,7 @@ def _fit_sarimax(log_y: pd.Series, order, seasonal_order):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", ConvergenceWarning)
         result = model.fit(disp=False, maxiter=200)
-    converged = result.mle_retvals.get("converged", False)
-    if not converged or not np.isfinite(result.llf) or not np.isfinite(result.params).all():
-        raise _FitFailedError(f"SARIMA{order}x{seasonal_order} fit failed or did not converge")
+    _require_converged(result, f"SARIMA{order}x{seasonal_order}")
     return result
 
 
@@ -168,6 +171,8 @@ def select_sarima_orders(history: pd.DataFrame) -> tuple[tuple, tuple, pd.DataFr
         except _FitFailedError:
             continue
         rows.append({"order": order, "seasonal_order": seasonal, "aic": aic})
+    if not rows:
+        raise _FitFailedError("no SARIMA candidate in the grid could be fitted")
     table = pd.DataFrame(rows).sort_values("aic").reset_index(drop=True)
     best = table.iloc[0]
     return best["order"], best["seasonal_order"], table
