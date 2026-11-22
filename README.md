@@ -163,3 +163,7 @@ is shared by the other trend-based models, while its explanatory value is unique
 
 Data: European Central Bank, ECB Data Portal (<https://data.ecb.europa.eu>). Reuse follows the
 ECB's terms for statistical data.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
