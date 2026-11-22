@@ -7,6 +7,13 @@ SARIMA, a rate regression and gradient boosting) are scored in a rolling-origin 
 +/-100 bp scenarios. The [notebook](notebooks/results.ipynb) walks through everything; design
 decisions and a questions-and-answers section are in [`docs/methodology.md`](docs/methodology.md).
 
+## Key result
+
+Over all target months, the best model cuts the naive baseline's error by 45 % at 1 month
+(SARIMA, MAE 5.3 vs 9.6 EUR bn) and by 63 % at 12 months (LightGBM, MAE 36.6 vs 99.0 EUR bn).
+
+![Backtest MAE by forecast horizon](docs/figures/mae_by_horizon.png)
+
 All data is public and comes from the ECB Data Portal. The only exception is a small fictional
 deposit book in `synthetic.py`, always labelled synthetic, that demonstrates planned outflows.
 
