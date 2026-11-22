@@ -43,16 +43,6 @@ uv run jupyter execute --inplace notebooks/results.ipynb  # re-run the notebook 
 uv run pytest                            # offline tests
 ```
 
-## Status
-
-- [x] Data
-- [x] Baselines
-- [x] Rolling-origin backtest
-- [x] Exponential smoothing and SARIMA
-- [x] Rate regression and scenarios
-- [x] Gradient boosting
-- [x] Results and recommendation
-
 ## Results
 
 Rolling-origin backtest, one forecast origin per month from 2010-12, horizons 1 to 12 months,
