@@ -5,7 +5,7 @@ Comparing forecasting models for household overnight deposits on public ECB data
 SARIMA, a rate regression and gradient boosting) are scored in a rolling-origin backtest over
 1 to 12 months, with a stress test on the 2022-2023 rate turn, and the rate regression drives
 +/-100 bp scenarios. The [notebook](notebooks/results.ipynb) walks through everything; design
-decisions and answers to the central questions are in [`docs/methodology.md`](docs/methodology.md).
+decisions and a questions-and-answers section are in [`docs/methodology.md`](docs/methodology.md).
 
 All data is public and comes from the ECB Data Portal. The only exception is a small fictional
 deposit book in `synthetic.py`, always labelled synthetic, that demonstrates planned outflows.
@@ -94,12 +94,13 @@ they were produced with `uv run deposit-forecasting-backtest --out results` on t
 Over all months every model beats the naive forecast clearly, and the seasonal statistical
 models (SARIMA, ETS) are the most accurate up to six months with well-calibrated bands, while
 LightGBM wins at 12 months but with bands that are too narrow (61 % against 80 %). The 2022-2023
-turn changes the picture: deposits grew only about 2.6 % in 2022, peaked in late 2022 and fell in 2023
-while rates rose, and the trend-following drift and the rate regression overshoot, with MAE two to three times that of the naive forecast
-at 12 months and bands that almost never contain the outcome. ETS, which damps its trend, copes
-best up to eight months; at 12 months the naive forecast is the most accurate. The bands of
-every other model fall far below the nominal level at long horizons, while the ETS bands hold near it (79 % at 12 months). The turn has only 24 forecasts per horizon, so
-differences between models there are indicative.
+turn changes the picture: deposits grew only about 2.6 % in 2022, peaked in late 2022 and fell
+in 2023 while rates rose, and the trend-following drift and the rate regression overshoot, with
+MAE two to three times that of the naive forecast at 12 months and bands that almost never
+contain the outcome. ETS, which damps its trend, copes best up to eight months; at 12 months
+the naive forecast is the most accurate. The bands of every other model fall far below the
+nominal level at long horizons, while the ETS bands hold near it (79 % at 12 months). The turn
+has only 24 forecasts per horizon, so differences between models there are indicative.
 
 Rate scenarios (parallel +/-100 bp shift of the ECB deposit facility rate against unchanged
 rates, 24 months) from the rate regression:
@@ -113,9 +114,9 @@ facility rate at the 12-month horizon (SHAP summary on the full history):
 
 ## Model comparison
 
-Accuracy summarises both segments (qualitative ratings of MAE across the six models). Transparency asks
-whether each driver can be read and explained. Effort covers implementation, data, maintenance
-and compute.
+Accuracy summarises both segments (qualitative ratings of MAE across the six models).
+Transparency asks whether each driver can be read and explained. Effort covers implementation,
+data, maintenance and compute.
 
 | Model | Accuracy: all months | Accuracy: rate turn | Transparency | Effort | Rate scenarios |
 |---|---|---|---|---|---|
