@@ -19,9 +19,12 @@ deposit-forecasting-data = "deposit_forecasting.data:main"
 deposit-forecasting-backtest = "deposit_forecasting.backtest:main"
 deposit-forecasting-scenarios = "deposit_forecasting.scenarios:main"
 deposit-forecasting-explain = "deposit_forecasting.explain:main"
+deposit-forecasting-figures = "deposit_forecasting.figures:main"
 
 [dependency-groups]
 dev = [
+    "ipykernel>=6",
+    "nbclient>=0.10",
     "pytest>=8",
     "ruff>=0.6",
 ]
@@ -38,6 +41,7 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
+extend-exclude = ["notebooks"]
 src = ["src", "tests"]
 
 [tool.ruff.lint]
